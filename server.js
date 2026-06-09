@@ -1282,7 +1282,8 @@ if (require.main === module) {            // import(테스트) 시엔 서버 미
   });
 }
 
-module.exports = {                        // 단위테스트용 export (순수 헬퍼)
+module.exports = {                        // 단위테스트용 export (순수 헬퍼 + SSRF 가드)
   isPrivateIp, isLoopbackHost, hostnameMatchesAllowlist,
   escapeHtml, parseRecipients, severityWeight,
+  assertTargetAllowed, shouldBlockPrivateIps,
 };
