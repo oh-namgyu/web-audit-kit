@@ -1,0 +1,27 @@
+{
+  "name": "testgpt7",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Non-invasive site audit reporter for security, UX, architecture, and functional QA.",
+  "license": "MIT",
+  "files": [
+    "server.js",
+    "public",
+    "data/reports/.gitkeep",
+    "data/screenshots/.gitkeep",
+    "README.md",
+    "LICENSE",
+    ".env.example",
+    "SECURITY.md"
+  ],
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check public/app.js"
+  },
+  "dependencies": {
+    "playwright": "^1.52.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

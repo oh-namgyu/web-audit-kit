@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+
+data/*
+!data/reports/
+!data/screenshots/
+data/reports/*
+data/screenshots/*
+!data/reports/.gitkeep
+!data/screenshots/.gitkeep
+
+node_modules/
+npm-debug.log*
+*.tgz
+.DS_Store
+coverage/

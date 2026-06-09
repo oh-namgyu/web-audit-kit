@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>testGpt7 Site Audit</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <aside class="side">
+    <div class="brand">
+      <span>testGpt7</span>
+      <strong>Site Audit</strong>
+    </div>
+    <nav class="menu" aria-label="감사 메뉴">
+      <button type="button" class="menu-item active" data-tab-target="target">대상/방법</button>
+      <button type="button" class="menu-item" data-tab-target="dashboard">현황 대시보드</button>
+      <button type="button" class="menu-item" data-tab-target="reporting">레포팅</button>
+      <button type="button" class="menu-item" data-tab-target="logs">지난 로그</button>
+    </nav>
+    <p id="status" class="status">대기 중</p>
+  </aside>
+
+  <main class="main">
+    <section class="topbar">
+      <div>
+        <p class="eyebrow">security · design · architecture · qa</p>
+        <h1>주소 하나로 사이트를 냉정하게 감사하고 고칠 항목을 뽑습니다</h1>
+      </div>
+      <div class="score-card">
+        <b id="score">-</b>
+        <span id="verdict">아직 감사 전</span>
+      </div>
+    </section>
+
+    <section class="tab-view active" data-tab="target">
+      <form id="auditForm" class="target-grid">
+        <section class="panel form-panel primary-form">
+          <div class="section-title">
+            <h2>대상 주소</h2>
+            <span>감사 시작점</span>
+          </div>
+          <label>
+            대상 주소
+            <input id="targetUrl" name="targetUrl" type="url" placeholder="https://example.com" required>
+          </label>
+          <label>
+            추가 메모
+            <textarea id="notes" rows="4" placeholder="주요 기능, 특히 봐야 할 화면, 테스트 티켓 링크"></textarea>
+          </label>
+          <div class="action-row">
+            <button id="runBtn" type="submit">감사 실행</button>
+            <button id="sampleBtn" type="button" class="ghost">샘플 감사</button>
+          </div>
+        </section>
+
+        <section class="panel form-panel">
+          <div class="section-title">
+            <h2>감사 단계</h2>
+            <span>권한 기준</span>
+          </div>
+          <label>
+            소유/승인 상태
+            <select id="ownership">
+              <option value="owner">내가 오너</option>
+              <option value="other-team-authorized">다른 팀 시스템 - 승인 있음</option>
+              <option value="external-or-unknown">오너/승인 불명확</option>
+            </select>
+          </label>
+          <label>
+            현재 단계
+            <select id="environment">
+              <option value="internal-test">내부 테스트</option>
+              <option value="local-dev">로컬 개발</option>
+              <option value="staging">스테이징</option>
+              <option value="production-readiness">운영 배포 준비</option>
+              <option value="production">운영 중</option>
+            </select>
+          </label>
+          <label>
+            허용 수준
+            <select id="permissionLevel">
+              <option value="surface-only">비로그인 표면 감사</option>
+              <option value="login-readonly">테스트 계정 읽기 감사</option>
+              <option value="test-data-write">테스트 데이터 생성/수정 감사</option>
+              <option value="security-probe">권한/업로드 보안 점검</option>
+              <option value="destructive-sandbox">삭제/파괴 테스트 가능 샌드박스</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="panel form-panel">
+          <div class="section-title">
+            <h2>승인/계정</h2>
+            <span>전제 조건</span>
+          </div>
+          <label class="check"><input id="hasExplicitApproval" type="checkbox"> 명시 승인 있음</label>
+          <label class="check"><input id="hasTestAccount" type="checkbox"> 테스트 계정 있음</label>
+          <label class="check"><input id="hasAdminAccount" type="checkbox"> 관리자 테스트 계정 있음</label>
+          <label class="check"><input id="hasRollback" type="checkbox"> 롤백/복구 방법 확인</label>
+        </section>
+
+        <section class="panel form-panel">
+          <div class="section-title">
+            <h2>선택 범위</h2>
+            <span>검사 허용</span>
+          </div>
+          <label class="check"><input id="allowCreate" type="checkbox"> 테스트 데이터 생성</label>
+          <label class="check"><input id="allowModify" type="checkbox"> 테스트 데이터 수정</label>
+          <label class="check"><input id="allowDelete" type="checkbox"> 테스트 데이터 삭제</label>
+          <label class="check"><input id="allowFileUpload" type="checkbox"> 파일 업로드 점검</label>
+          <label class="check"><input id="allowAuthzProbe" type="checkbox"> 권한 우회/역할 차이 점검</label>
+          <label class="check"><input id="allowLoadTest" type="checkbox"> 부하 테스트 검토</label>
+        </section>
+
+        <section class="panel form-panel wide">
+          <div class="section-title">
+            <h2>운영 정보</h2>
+            <span>연락/전달</span>
+          </div>
+          <div class="field-grid">
+            <label>
+              테스트 가능 시간
+              <input id="testWindow" type="text" placeholder="예: 평일 19:00-20:00">
+            </label>
+            <label>
+              문제 발생 시 담당자
+              <input id="contact" type="text" placeholder="담당자/연락 채널">
+            </label>
+            <label>
+              리포트 수신자 메일
+              <input id="reportRecipients" type="text" inputmode="email" placeholder="audit@example.com">
+            </label>
+          </div>
+          <label>
+            절대 건드리면 안 되는 메뉴
+            <textarea id="forbiddenAreas" rows="2" placeholder="예: 실결제, 실회원 삭제, 운영 공지 발송"></textarea>
+          </label>
+          <label>
+            롤백/복구 방법
+            <textarea id="rollbackPlan" rows="2" placeholder="백업, 테스트 데이터 삭제 방법, 담당자 호출 절차"></textarea>
+          </label>
+        </section>
+      </form>
+    </section>
+
+    <section class="tab-view" data-tab="dashboard">
+      <section class="kpis">
+        <article><b id="criticalCount">0</b><span>Critical</span></article>
+        <article><b id="highCount">0</b><span>High</span></article>
+        <article><b id="mediumCount">0</b><span>Medium</span></article>
+        <article><b id="lowCount">0</b><span>Low</span></article>
+        <article><b id="viewportCount">0</b><span>Viewports</span></article>
+      </section>
+      <section class="layout dashboard-layout">
+        <section class="panel">
+          <div class="section-title">
+            <h2>감사 프로필</h2>
+            <span id="scopeLabel">범위 미설정</span>
+          </div>
+          <div id="scopePlan" class="scope-plan empty">감사를 실행하면 선택한 권한/단계 기준으로 허용·차단·수동확인 범위가 표시됩니다.</div>
+        </section>
+        <section class="panel">
+          <div class="section-title">
+            <h2>영역별 균형</h2>
+            <span>security / ux / qa / architecture</span>
+          </div>
+          <div id="areaBalance" class="area-balance empty">감사를 실행하면 영역별 발견 수가 표시됩니다.</div>
+        </section>
+        <section class="panel">
+          <div class="section-title">
+            <h2>측정 근거</h2>
+            <span>desktop / mobile</span>
+          </div>
+          <div id="evidence" class="evidence"></div>
+        </section>
+      </section>
+    </section>
+
+    <section class="tab-view" data-tab="reporting">
+      <section class="layout reporting-layout">
+      <section class="panel">
+        <div class="section-title">
+          <h2>최우선 수정</h2>
+          <div class="button-pair">
+            <button id="exportHtmlBtn" type="button" class="small ghost" disabled>HTML 보고서</button>
+            <button id="exportBtn" type="button" class="small ghost" disabled>Markdown</button>
+          </div>
+        </div>
+        <div id="priority" class="priority empty">감사를 실행하면 Critical/High 항목이 먼저 표시됩니다.</div>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <h2>감사 항목</h2>
+          <span id="findingCount">0건</span>
+        </div>
+        <div id="findings" class="findings"></div>
+      </section>
+      </section>
+    </section>
+
+    <section class="tab-view" data-tab="logs">
+      <section class="panel">
+        <div class="section-title">
+          <h2>지난 로그</h2>
+          <button id="refreshBtn" type="button" class="small ghost">새로고침</button>
+        </div>
+        <div id="history" class="history-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
