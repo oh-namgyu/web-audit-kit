@@ -36,11 +36,15 @@ async function readBody(req, maxBytes = 1024 * 1024) {
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > maxBytes) throw new Error('payload too large');
+    if (size > maxBytes) { const e = new Error('payload too large'); e.statusCode = 413; throw e; }
     chunks.push(chunk);
   }
   if (!chunks.length) return {};
-  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    const e = new Error('invalid JSON body'); e.statusCode = 400; throw e;
+  }
 }
 
 async function normalizeUrl(value) {
@@ -249,7 +253,7 @@ function sendWithSendmail(config, recipients, message) {
 
 function createSmtpClient(config) {
   let socket = config.smtp.secure
-    ? tls.connect(config.smtp.port, config.smtp.host, { servername: config.smtp.host })
+    ? tls.connect(config.smtp.port, config.smtp.host, { servername: config.smtp.host, rejectUnauthorized: true })
     : net.connect(config.smtp.port, config.smtp.host);
   socket.setTimeout(20000);
   let buffer = '';
@@ -292,7 +296,7 @@ function createSmtpClient(config) {
   async function startTls() {
     await command('STARTTLS');
     await new Promise((resolve, reject) => {
-      const secure = tls.connect({ socket, servername: config.smtp.host }, () => {
+      const secure = tls.connect({ socket, servername: config.smtp.host, rejectUnauthorized: true }, () => {
         socket = secure;
         socket.setTimeout(20000);
         resolve();
@@ -1266,7 +1270,7 @@ async function route(req, res) {
     }
     return serveStatic(req, res);
   } catch (error) {
-    return json(res, 500, { ok: false, error: error.message || String(error) });
+    return json(res, error.statusCode || 500, { ok: false, error: error.message || String(error) });
   }
 }
 
