@@ -17,6 +17,15 @@ Generated reports and screenshots can contain target URLs, page text, recipient 
 - Node.js 20 or newer
 - Playwright
 
+## Quick Start
+
+Clone the repository:
+
+```bash
+git clone https://github.com/oh-namgyu/testGpt7.git
+cd testGpt7
+```
+
 Install dependencies:
 
 ```bash
@@ -40,6 +49,43 @@ Open:
 ```text
 http://127.0.0.1:6197
 ```
+
+## Basic Usage
+
+1. Open `http://127.0.0.1:6197`.
+2. Enter a target URL you own or are authorized to test.
+3. Select the audit context:
+   - ownership
+   - environment
+   - permission level
+   - approval/scope options
+4. Click `감사 실행`.
+5. Review the result in the dashboard and reporting tabs.
+6. Export the report as HTML, Markdown, or JSON.
+
+Generated files are saved locally:
+
+```text
+data/reports/<id>.json
+data/reports/<id>.md
+data/reports/<id>.html
+data/screenshots/<id>-desktop.png
+data/screenshots/<id>-mobile.png
+```
+
+These files are ignored by git because they may contain target URLs, page text, email recipients, and local evidence paths.
+
+## What It Checks
+
+- Security headers and cookie flags
+- HTTPS/HSTS/CSP/frame protections
+- Desktop and mobile rendering
+- Console errors and failed requests
+- Basic accessibility and UX signals
+- Layout overflow and tap-target issues
+- Form, button, link, image, and heading structure
+- Functional QA signals such as duplicate IDs and missing states
+- Audit scope risks from the selected test profile
 
 ## Environment
 
