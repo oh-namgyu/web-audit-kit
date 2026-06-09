@@ -1276,6 +1276,13 @@ async function route(req, res) {
 
 assertSafeHostBinding();
 
-http.createServer(route).listen(PORT, HOST, () => {
-  console.log(`testGpt7 running at http://${HOST}:${PORT}`);
-});
+if (require.main === module) {            // import(테스트) 시엔 서버 미기동 — 순수함수 단위테스트 가능
+  http.createServer(route).listen(PORT, HOST, () => {
+    console.log(`testGpt7 running at http://${HOST}:${PORT}`);
+  });
+}
+
+module.exports = {                        // 단위테스트용 export (순수 헬퍼)
+  isPrivateIp, isLoopbackHost, hostnameMatchesAllowlist,
+  escapeHtml, parseRecipients, severityWeight,
+};
