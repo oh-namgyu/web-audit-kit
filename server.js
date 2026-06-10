@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs/promises');
 const path = require('path');
 const net = require('net');
@@ -20,6 +21,10 @@ const TARGET_ALLOWLIST = String(process.env.TESTGPT7_TARGET_ALLOWLIST || '')
   .map(item => item.trim().toLowerCase())
   .filter(Boolean);
 const MAX_REDIRECTS = Number(process.env.TESTGPT7_MAX_REDIRECTS || 5);
+
+// Canonical audit area order — single source of truth for report rendering.
+// Mirrored in public/app.js (AUDIT_AREAS) for the client-side balance view.
+const AUDIT_AREAS = ['Security', 'Design UX', 'Functional QA', 'Architecture', 'Audit Scope'];
 
 function json(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -121,7 +126,7 @@ function isPrivateIp(ip) {
       || normalized === '::1'
       || normalized.startsWith('fc')
       || normalized.startsWith('fd')
-      || normalized.startsWith('fe80:')
+      || /^fe[89ab][0-9a-f]:/.test(normalized) // link-local fe80::/10 (fe80–febf)
       || normalized.startsWith('fec0:');
   }
   return false;
@@ -133,15 +138,35 @@ async function resolveHostIps(hostname) {
   return [...new Set(records.map(record => record.address))];
 }
 
+// Returns { ips, pinnedIp } when DNS was resolved and validated, else null.
+// Callers pin their connection lookup to pinnedIp so the IP that passed the
+// guard is exactly the IP the socket connects to (closes the TOCTOU / DNS
+// rebinding gap where fetch/undici would re-resolve independently).
 async function assertTargetAllowed(parsedUrl) {
   if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Only http/https URLs are supported');
   assertTargetHostAllowed(parsedUrl);
-  if (!shouldBlockPrivateIps()) return;
+  if (!shouldBlockPrivateIps()) return null;
   const ips = await resolveHostIps(parsedUrl.hostname);
   const blocked = ips.filter(isPrivateIp);
   if (blocked.length) {
     throw new Error(`Target resolves to blocked private/reserved IP: ${parsedUrl.hostname} -> ${blocked.join(', ')}`);
   }
+  if (!ips.length) {
+    throw new Error(`Target did not resolve to any address: ${parsedUrl.hostname}`);
+  }
+  return { ips, pinnedIp: ips[0] };
+}
+
+// Builds a dns.lookup-shaped callback that always returns the already-validated
+// pinnedIp, so http/https never re-resolves the hostname at connect time.
+function pinnedLookup(pinnedIp) {
+  const family = net.isIP(pinnedIp);
+  return (hostname, options, callback) => {
+    const cb = typeof options === 'function' ? options : callback;
+    const opts = typeof options === 'function' ? {} : (options || {});
+    if (opts.all) return cb(null, [{ address: pinnedIp, family }]);
+    return cb(null, pinnedIp, family);
+  };
 }
 
 function severityWeight(severity) {
@@ -280,6 +305,7 @@ function createSmtpClient(config) {
       const onTimeout = () => {
         socket.off('data', onData);
         socket.off('error', onError);
+        socket.destroy(); // free the dangling socket on timeout instead of leaking it half-open
         reject(new Error('SMTP timeout'));
       };
       socket.on('data', onData);
@@ -310,32 +336,42 @@ function createSmtpClient(config) {
   function end() {
     socket.end();
   }
-  return { readResponse, command, startTls, write, end };
+  function destroy() {
+    socket.destroy();
+  }
+  return { readResponse, command, startTls, write, end, destroy };
 }
 
 async function sendWithSmtp(config, recipients, message) {
   if (!config.smtp.host) throw new Error('SMTP host is not configured');
-  let client = createSmtpClient(config);
-  await client.readResponse();
-  await client.command(`EHLO ${HOST}`);
-  if (!config.smtp.secure && [587, 25].includes(config.smtp.port)) {
-    await client.startTls();
+  const client = createSmtpClient(config);
+  let graceful = false;
+  try {
+    await client.readResponse();
     await client.command(`EHLO ${HOST}`);
+    if (!config.smtp.secure && [587, 25].includes(config.smtp.port)) {
+      await client.startTls();
+      await client.command(`EHLO ${HOST}`);
+    }
+    if (config.smtp.user || config.smtp.pass) {
+      const token = Buffer.from(`\0${config.smtp.user}\0${config.smtp.pass}`, 'utf8').toString('base64');
+      await client.command(`AUTH PLAIN ${token}`);
+    }
+    await client.command(`MAIL FROM:<${config.from}>`);
+    for (const recipient of recipients) await client.command(`RCPT TO:<${recipient}>`);
+    await client.command('DATA', /^354/);
+    const safeMessage = message.replace(/^\./gm, '..');
+    client.write(`${safeMessage}\r\n.\r\n`);
+    const dataResponse = await client.readResponse();
+    if (!/^[23]/.test(dataResponse)) throw new Error(dataResponse.trim());
+    await client.command('QUIT').catch(() => null);
+    graceful = true;
+    return { transport: 'smtp', recipients, accepted: recipients.length };
+  } finally {
+    // Always release the socket: graceful end on success, hard destroy on any failure.
+    if (graceful) client.end();
+    else client.destroy();
   }
-  if (config.smtp.user || config.smtp.pass) {
-    const token = Buffer.from(`\0${config.smtp.user}\0${config.smtp.pass}`, 'utf8').toString('base64');
-    await client.command(`AUTH PLAIN ${token}`);
-  }
-  await client.command(`MAIL FROM:<${config.from}>`);
-  for (const recipient of recipients) await client.command(`RCPT TO:<${recipient}>`);
-  await client.command('DATA', /^354/);
-  const safeMessage = message.replace(/^\./gm, '..');
-  client.write(`${safeMessage}\r\n.\r\n`);
-  const dataResponse = await client.readResponse();
-  if (!/^[23]/.test(dataResponse)) throw new Error(dataResponse.trim());
-  await client.command('QUIT').catch(() => null);
-  client.end();
-  return { transport: 'smtp', recipients, accepted: recipients.length };
 }
 
 async function sendReportEmail(report) {
@@ -352,15 +388,11 @@ async function sendReportEmail(report) {
     to: recipients,
     subject,
     body,
-    attachments: report.htmlReport ? [{
+    attachments: [{
       filename: `site-audit-${report.id}.html`,
       contentType: 'text/html; charset=UTF-8',
-      content: report.htmlReport,
+      content: report.htmlReport || buildHtmlReport(report),
     }, {
-      filename: `site-audit-${report.id}.md`,
-      contentType: 'text/markdown; charset=UTF-8',
-      content: report.markdown || buildMarkdown(report),
-    }] : [{
       filename: `site-audit-${report.id}.md`,
       contentType: 'text/markdown; charset=UTF-8',
       content: report.markdown || buildMarkdown(report),
@@ -533,8 +565,47 @@ function analyzeAuditProfile(profile, scopePlan, findings) {
 
 function headersObject(headers) {
   const out = {};
-  for (const [key, value] of headers.entries()) out[key.toLowerCase()] = value;
+  for (const [key, value] of Object.entries(headers || {})) {
+    out[String(key).toLowerCase()] = Array.isArray(value) ? value.join(', ') : value;
+  }
   return out;
+}
+
+// Single non-redirecting request pinned to pinnedIp (when provided). Pinning the
+// dns.lookup of http/https guarantees the socket connects to the exact IP that
+// passed assertTargetAllowed, while Host header and TLS SNI stay on the original
+// hostname (so vhosts and certificate validation keep working).
+function requestOnce(currentUrl, pinnedIp, signal, maxBytes = 4000) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(currentUrl);
+    const agent = parsed.protocol === 'https:' ? https : http;
+    const options = {
+      method: 'GET',
+      headers: { 'user-agent': 'testGpt7-audit', accept: '*/*' },
+      signal,
+    };
+    if (pinnedIp) options.lookup = pinnedLookup(pinnedIp);
+    let settled = false;
+    const req = agent.request(currentUrl, options, res => {
+      const chunks = [];
+      let size = 0;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve({ status: res.statusCode || 0, headers: headersObject(res.headers), body: Buffer.concat(chunks).toString('utf8') });
+      };
+      res.on('data', chunk => {
+        size += chunk.length;
+        if (size <= maxBytes * 4) chunks.push(chunk);
+        if (size > maxBytes * 8) res.destroy(); // cap how much of the body we buffer
+      });
+      res.on('end', finish);
+      res.on('close', finish); // resolve even if we destroyed the stream early
+      res.on('error', err => { if (!settled) { settled = true; reject(err); } });
+    });
+    req.on('error', err => { if (!settled) { settled = true; reject(err); } });
+    req.end();
+  });
 }
 
 async function fetchHeaders(targetUrl) {
@@ -545,22 +616,22 @@ async function fetchHeaders(targetUrl) {
   try {
     for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
       const parsed = new URL(currentUrl);
-      await assertTargetAllowed(parsed);
-      const res = await fetch(currentUrl, { redirect: 'manual', signal: controller.signal });
-      if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
-        const nextUrl = new URL(res.headers.get('location'), currentUrl).toString();
+      const allow = await assertTargetAllowed(parsed);
+      const res = await requestOnce(currentUrl, allow?.pinnedIp, controller.signal);
+      const location = res.headers.location;
+      if (res.status >= 300 && res.status < 400 && location) {
+        const nextUrl = new URL(location, currentUrl).toString();
         await assertTargetAllowed(new URL(nextUrl));
         redirectChain.push({ status: res.status, from: currentUrl, to: nextUrl });
         currentUrl = nextUrl;
         continue;
       }
-      const body = await res.text().catch(() => '');
       return {
         ok: true,
         status: res.status,
         finalUrl: currentUrl,
-        headers: headersObject(res.headers),
-        htmlPreview: body.slice(0, 4000),
+        headers: res.headers,
+        htmlPreview: res.body.slice(0, 4000),
         redirectChain,
       };
     }
@@ -1030,7 +1101,7 @@ function buildHtmlReport(report) {
     <section class="section">
       <h2>영역별 균형</h2>
       <div class="area-grid">
-        ${['Security', 'Design UX', 'Functional QA', 'Architecture', 'Audit Scope'].map(area => {
+        ${AUDIT_AREAS.map(area => {
           const row = areaCounts[area] || {};
           return `<article><span>${escapeHtml(area)}</span><b>${row.total || 0}</b><small>C ${row.Critical || 0} · H ${row.High || 0} · M ${row.Medium || 0} · L ${row.Low || 0}</small></article>`;
         }).join('')}
@@ -1095,6 +1166,11 @@ async function saveReport(report) {
   const filePath = path.join(REPORTS_DIR, `${report.id}.json`);
   const htmlPath = path.join(REPORTS_DIR, `${report.id}.html`);
   const markdownPath = path.join(REPORTS_DIR, `${report.id}.md`);
+  // Set paths on the report before the JSON write so a single saveReport call
+  // persists them (no second write needed).
+  report.reportPath = filePath;
+  report.htmlPath = htmlPath;
+  report.markdownPath = markdownPath;
   await fs.writeFile(htmlPath, report.htmlReport || buildHtmlReport(report));
   await fs.writeFile(markdownPath, report.markdown || buildMarkdown(report));
   await fs.writeFile(filePath, JSON.stringify(report, null, 2));
@@ -1119,12 +1195,15 @@ async function runAudit(input) {
   const { chromium } = loadPlaywright();
   const browser = await chromium.launch({ headless: true });
   const viewports = [];
-  for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 'mobile', width: 390, height: 844 }]) {
-    const result = await inspectViewport(browser, targetUrl, viewport);
-    analyzeViewportResult(result, findings);
-    viewports.push(result);
+  try {
+    for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 'mobile', width: 390, height: 844 }]) {
+      const result = await inspectViewport(browser, targetUrl, viewport);
+      analyzeViewportResult(result, findings);
+      viewports.push(result);
+    }
+  } finally {
+    await browser.close().catch(() => null);
   }
-  await browser.close();
   const report = {
     id,
     targetUrl,
@@ -1139,15 +1218,10 @@ async function runAudit(input) {
     markdown: '',
     htmlReport: '',
   };
-  report.markdown = buildMarkdown(report);
-  report.htmlReport = buildHtmlReport(report);
+  // Send mail first, then build markdown/html once so they reflect the delivery result.
   report.mailDelivery = await sendReportEmail(report);
   report.markdown = buildMarkdown(report);
   report.htmlReport = buildHtmlReport(report);
-  const paths = await saveReport(report);
-  report.reportPath = paths.filePath;
-  report.htmlPath = paths.htmlPath;
-  report.markdownPath = paths.markdownPath;
   await saveReport(report);
   return report;
 }
@@ -1175,13 +1249,9 @@ async function listReports() {
 async function resendReport(id) {
   const report = await readReport(id);
   if (!report) return null;
+  report.mailDelivery = await sendReportEmail(report);
   report.markdown = buildMarkdown(report);
   report.htmlReport = buildHtmlReport(report);
-  report.mailDelivery = await sendReportEmail(report);
-  const paths = await saveReport(report);
-  report.reportPath = paths.filePath;
-  report.htmlPath = paths.htmlPath;
-  report.markdownPath = paths.markdownPath;
   await saveReport(report);
   return report;
 }
@@ -1286,4 +1356,5 @@ module.exports = {                        // 단위테스트용 export (순수 �
   isPrivateIp, isLoopbackHost, hostnameMatchesAllowlist,
   escapeHtml, parseRecipients, severityWeight,
   assertTargetAllowed, shouldBlockPrivateIps,
+  resolveHostIps, pinnedLookup,
 };

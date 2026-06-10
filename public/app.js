@@ -1,6 +1,9 @@
 const $ = (sel) => document.querySelector(sel);
 let currentReport = null;
 
+// Canonical audit area order — kept in sync with server.js (AUDIT_AREAS).
+const AUDIT_AREAS = ['Security', 'Design UX', 'Functional QA', 'Architecture', 'Audit Scope'];
+
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -71,8 +74,7 @@ function renderList(title, items, cls) {
 }
 
 function renderAreaBalance(areas = {}) {
-  const areaNames = ['Security', 'Design UX', 'Functional QA', 'Architecture', 'Audit Scope'];
-  return areaNames.map(name => {
+  return AUDIT_AREAS.map(name => {
     const row = areas[name] || {};
     return `<article class="area-row">
       <b>${esc(name)}</b>
