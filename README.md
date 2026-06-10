@@ -1,8 +1,8 @@
-# testGpt7
+# web-audit-kit
 
 Non-invasive site audit reporter for security, UX/design, architecture, and functional QA.
 
-testGpt7 is designed as a local-first audit assistant. It opens a target URL, collects passive browser/header evidence, creates Markdown/HTML/JSON reports, and can optionally send those reports by email.
+web-audit-kit is designed as a local-first audit assistant. It opens a target URL, collects passive browser/header evidence, creates Markdown/HTML/JSON reports, and can optionally send those reports by email.
 
 ## Safety Notice
 
@@ -59,7 +59,7 @@ http://127.0.0.1:6197
    - environment
    - permission level
    - approval/scope options
-4. Click `감사 실행`.
+4. Click `Run audit`.
 5. Review the result in the dashboard and reporting tabs.
 6. Export the report as HTML, Markdown, or JSON.
 
@@ -152,6 +152,8 @@ TESTGPT7_SMTP_SECURE=false
 TESTGPT7_SMTP_USER=example-user
 TESTGPT7_SMTP_PASS=replace-with-app-password
 ```
+
+> Note: the environment variables keep the `TESTGPT7_` prefix as a stable configuration contract; only the project name changed to web-audit-kit.
 
 ## API
 

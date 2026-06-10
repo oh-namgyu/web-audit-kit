@@ -1,6 +1,6 @@
 # Security Policy
 
-testGpt7 is a local-first, non-invasive site audit tool.
+web-audit-kit is a local-first, non-invasive site audit tool.
 
 ## Supported Use
 
@@ -10,7 +10,7 @@ The default configuration binds to `127.0.0.1`, disables mail delivery, ignores 
 
 ## Shared or Hosted Deployments
 
-Before exposing testGpt7 to a network, add your own:
+Before exposing web-audit-kit to a network, add your own:
 
 - Authentication
 - Target allowlist

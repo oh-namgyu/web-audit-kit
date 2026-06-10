@@ -1,22 +1,24 @@
 {
-  "name": "testgpt7",
+  "name": "web-audit-kit",
   "version": "0.1.0",
   "private": true,
   "description": "Non-invasive site audit reporter for security, UX, architecture, and functional QA.",
   "license": "MIT",
   "files": [
     "server.js",
+    "lib",
     "public",
     "data/reports/.gitkeep",
     "data/screenshots/.gitkeep",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     ".env.example",
     "SECURITY.md"
   ],
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check public/app.js",
+    "check": "node --check server.js && node --check lib/util.js && node --check lib/targetGuard.js && node --check lib/mail.js && node --check lib/analysis.js && node --check lib/report.js && node --check public/app.js",
     "test": "node --test"
   },
   "dependencies": {

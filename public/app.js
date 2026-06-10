@@ -66,7 +66,7 @@ function getAuditProfile() {
 }
 
 function renderList(title, items, cls) {
-  const rows = items && items.length ? items : ['없음'];
+  const rows = items && items.length ? items : ['None'];
   return `<article class="scope-card ${cls}">
     <h3>${esc(title)}</h3>
     <ul>${rows.map(item => `<li>${esc(item)}</li>`).join('')}</ul>
@@ -78,7 +78,7 @@ function renderAreaBalance(areas = {}) {
     const row = areas[name] || {};
     return `<article class="area-row">
       <b>${esc(name)}</b>
-      <span>${esc(row.total || 0)}건</span>
+      <span>${esc(row.total || 0)}</span>
       <small>C ${esc(row.Critical || 0)} · H ${esc(row.High || 0)} · M ${esc(row.Medium || 0)} · L ${esc(row.Low || 0)}</small>
     </article>`;
   }).join('');
@@ -94,28 +94,28 @@ function renderReport(report) {
   $('#mediumCount').textContent = counts.Medium || 0;
   $('#lowCount').textContent = counts.Low || 0;
   $('#viewportCount').textContent = report.viewports?.length || 0;
-  $('#findingCount').textContent = `${report.findings?.length || 0}건`;
+  $('#findingCount').textContent = `${report.findings?.length || 0}`;
   $('#exportBtn').disabled = false;
   $('#exportHtmlBtn').disabled = false;
   $('#areaBalance').classList.remove('empty');
   $('#areaBalance').innerHTML = renderAreaBalance(report.summary?.areas || {});
-  $('#scopeLabel').textContent = report.scopePlan?.label || '범위 미설정';
+  $('#scopeLabel').textContent = report.scopePlan?.label || 'Scope not set';
   $('#scopePlan').classList.toggle('empty', !report.scopePlan);
   $('#scopePlan').innerHTML = report.scopePlan ? `
     <article class="scope-card profile">
-      <h3>선택된 기준</h3>
+      <h3>Selected basis</h3>
       <dl>
-        <div><dt>소유/승인</dt><dd>${esc(report.profile?.labels?.ownership || '-')}</dd></div>
-        <div><dt>단계</dt><dd>${esc(report.profile?.labels?.environment || '-')}</dd></div>
-        <div><dt>허용 수준</dt><dd>${esc(report.profile?.labels?.permissionLevel || '-')}</dd></div>
-        <div><dt>수신자</dt><dd>${esc(report.profile?.reportRecipients || '-')}</dd></div>
+        <div><dt>Ownership/approval</dt><dd>${esc(report.profile?.labels?.ownership || '-')}</dd></div>
+        <div><dt>Stage</dt><dd>${esc(report.profile?.labels?.environment || '-')}</dd></div>
+        <div><dt>Permission level</dt><dd>${esc(report.profile?.labels?.permissionLevel || '-')}</dd></div>
+        <div><dt>Recipients</dt><dd>${esc(report.profile?.reportRecipients || '-')}</dd></div>
       </dl>
     </article>
-    ${renderList('실행 허용', report.scopePlan.allowed, 'allowed')}
-    ${renderList('이번 검사에서 차단', report.scopePlan.blocked, 'blocked')}
-    ${renderList('수동 확인 필요', report.scopePlan.manualRequired, 'manual')}
-    ${renderList('주의', report.scopePlan.warnings, 'warning')}
-  ` : '감사를 실행하면 선택한 권한/단계 기준으로 허용·차단·수동확인 범위가 표시됩니다.';
+    ${renderList('Allowed to run', report.scopePlan.allowed, 'allowed')}
+    ${renderList('Blocked this run', report.scopePlan.blocked, 'blocked')}
+    ${renderList('Manual confirmation needed', report.scopePlan.manualRequired, 'manual')}
+    ${renderList('Warnings', report.scopePlan.warnings, 'warning')}
+  ` : 'Run an audit to see the allowed / blocked / manual-confirmation scope based on the selected permission and stage.';
 
   const priority = (report.findings || []).filter(item => ['Critical', 'High'].includes(item.severity));
   $('#priority').classList.toggle('empty', !priority.length);
@@ -124,7 +124,7 @@ function renderReport(report) {
         <b>${esc(item.severity)}</b>
         <span>${esc(item.title)}</span>
       </article>`).join('')
-    : 'Critical/High 항목은 없습니다. Medium 항목부터 정리하면 됩니다.';
+    : 'No Critical/High items. Start by clearing the Medium items.';
 
   $('#findings').innerHTML = (report.findings || []).map(item => `
     <article class="finding ${sevClass(item.severity)}">
@@ -134,24 +134,24 @@ function renderReport(report) {
       </div>
       <h3>${esc(item.title)}</h3>
       <dl>
-        <div><dt>증거</dt><dd>${esc(item.evidence)}</dd></div>
-        <div><dt>영향</dt><dd>${esc(item.impact)}</dd></div>
-        <div><dt>수정</dt><dd>${esc(item.fix)}</dd></div>
+        <div><dt>Evidence</dt><dd>${esc(item.evidence)}</dd></div>
+        <div><dt>Impact</dt><dd>${esc(item.impact)}</dd></div>
+        <div><dt>Fix</dt><dd>${esc(item.fix)}</dd></div>
       </dl>
     </article>
-  `).join('') || '<p class="empty">감지된 문제가 없습니다.</p>';
+  `).join('') || '<p class="empty">No issues detected.</p>';
 
   $('#evidence').innerHTML = `
     <article>
-      <h3>대상</h3>
+      <h3>Target</h3>
       <dl>
         <div><dt>URL</dt><dd>${esc(report.targetUrl)}</dd></div>
-        <div><dt>모드</dt><dd>${esc(report.mode)}</dd></div>
-        <div><dt>범위</dt><dd>${esc(report.scopePlan?.label || '-')}</dd></div>
-        <div><dt>리포트 수신자</dt><dd>${esc(report.profile?.reportRecipients || '-')}</dd></div>
-        <div><dt>메일 발송</dt><dd>${esc(report.mailDelivery?.status || '-')}</dd></div>
-        <div><dt>메일 상세</dt><dd>${esc(report.mailDelivery?.sentAt || report.mailDelivery?.error || report.mailDelivery?.reason || '-')}</dd></div>
-        <div><dt>생성</dt><dd>${esc(new Date(report.generatedAt).toLocaleString())}</dd></div>
+        <div><dt>Mode</dt><dd>${esc(report.mode)}</dd></div>
+        <div><dt>Scope</dt><dd>${esc(report.scopePlan?.label || '-')}</dd></div>
+        <div><dt>Report recipients</dt><dd>${esc(report.profile?.reportRecipients || '-')}</dd></div>
+        <div><dt>Mail delivery</dt><dd>${esc(report.mailDelivery?.status || '-')}</dd></div>
+        <div><dt>Mail detail</dt><dd>${esc(report.mailDelivery?.sentAt || report.mailDelivery?.error || report.mailDelivery?.reason || '-')}</dd></div>
+        <div><dt>Generated</dt><dd>${esc(new Date(report.generatedAt).toLocaleString())}</dd></div>
         <div><dt>HTTP</dt><dd>${esc(report.headerResult?.status || report.headerResult?.error || '-')}</dd></div>
       </dl>
     </article>
@@ -173,16 +173,16 @@ function renderReport(report) {
 }
 
 async function runAudit(targetUrl) {
-  setBusy(true, '사이트 감사 중... desktop/mobile 브라우저를 실제로 열어 확인합니다.');
+  setBusy(true, 'Auditing the site... opening real desktop/mobile browsers to check.');
   try {
     const data = await api('/api/audit', { method: 'POST', body: { targetUrl, profile: getAuditProfile() } });
     renderReport(data.report);
     await loadHistory();
-    const mail = data.report.mailDelivery?.status ? ` · 메일 ${data.report.mailDelivery.status}` : '';
-    setBusy(false, `완료: ${data.report.summary.verdict}${mail}`);
+    const mail = data.report.mailDelivery?.status ? ` · mail ${data.report.mailDelivery.status}` : '';
+    setBusy(false, `Done: ${data.report.summary.verdict}${mail}`);
     setActiveTab('dashboard');
   } catch (error) {
-    setBusy(false, `실패: ${error.message}`);
+    setBusy(false, `Failed: ${error.message}`);
   }
 }
 
@@ -193,8 +193,8 @@ async function loadHistory() {
   const previous = items[1];
   const trend = latest && previous
     ? `<article class="history-trend">
-        <b>최근 변화</b>
-        <span>점수 ${esc(previous.summary?.score ?? '-')} → ${esc(latest.summary?.score ?? '-')}</span>
+        <b>Recent change</b>
+        <span>Score ${esc(previous.summary?.score ?? '-')} → ${esc(latest.summary?.score ?? '-')}</span>
         <small>${esc(previous.summary?.verdict || '-')} → ${esc(latest.summary?.verdict || '-')}</small>
       </article>`
     : '';
@@ -203,16 +203,16 @@ async function loadHistory() {
       <button type="button" class="history-open" data-action="open" data-id="${esc(item.id)}">
         <b>${esc(item.summary?.verdict || '-')}</b>
         <span>${esc(item.targetUrl)}</span>
-        <small>${esc(new Date(item.generatedAt).toLocaleString())} · 메일 ${esc(item.mailDelivery?.status || '-')}</small>
+        <small>${esc(new Date(item.generatedAt).toLocaleString())} · mail ${esc(item.mailDelivery?.status || '-')}</small>
       </button>
       <div class="history-actions">
-        <button type="button" class="small ghost" data-action="html" data-id="${esc(item.id)}">HTML 열기</button>
+        <button type="button" class="small ghost" data-action="html" data-id="${esc(item.id)}">Open HTML</button>
         <button type="button" class="small ghost" data-action="md" data-id="${esc(item.id)}">Markdown</button>
         <button type="button" class="small ghost" data-action="json" data-id="${esc(item.id)}">JSON</button>
-        <button type="button" class="small ghost" data-action="resend" data-id="${esc(item.id)}">메일 재전송</button>
+        <button type="button" class="small ghost" data-action="resend" data-id="${esc(item.id)}">Resend mail</button>
       </div>
     </article>
-  `).join('') || '<p class="empty">저장된 리포트가 없습니다.</p>';
+  `).join('') || '<p class="empty">No saved reports.</p>';
   document.querySelectorAll('[data-action]').forEach(button => {
     button.addEventListener('click', async event => {
       event.stopPropagation();
@@ -231,15 +231,15 @@ async function loadHistory() {
         return;
       }
       if (action === 'resend') {
-        setBusy(true, '메일 재전송 중...');
+        setBusy(true, 'Resending mail...');
         try {
           const data = await api('/api/resend', { method: 'POST', body: { id } });
           renderReport(data.report);
           await loadHistory();
-          setBusy(false, `재전송 완료: 메일 ${data.report.mailDelivery?.status || '-'}`);
+          setBusy(false, `Resent: mail ${data.report.mailDelivery?.status || '-'}`);
           setActiveTab('reporting');
         } catch (error) {
-          setBusy(false, `재전송 실패: ${error.message}`);
+          setBusy(false, `Resend failed: ${error.message}`);
         }
         return;
       }
@@ -280,5 +280,5 @@ $('#exportHtmlBtn').addEventListener('click', () => {
 });
 
 loadHistory().catch(error => {
-  $('#history').innerHTML = `<p class="empty">리포트 목록 로딩 실패: ${esc(error.message)}</p>`;
+  $('#history').innerHTML = `<p class="empty">Failed to load report list: ${esc(error.message)}</p>`;
 });
