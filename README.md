@@ -24,8 +24,8 @@ Generated reports and screenshots can contain target URLs, page text, recipient 
 Clone the repository:
 
 ```bash
-git clone https://github.com/oh-namgyu/testGpt7.git
-cd testGpt7
+git clone https://github.com/oh-namgyu/web-audit-kit.git
+cd web-audit-kit
 ```
 
 Install dependencies:
