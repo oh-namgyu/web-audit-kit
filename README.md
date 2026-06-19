@@ -1,5 +1,10 @@
 # web-audit-kit
 
+[![CI](https://github.com/oh-namgyu/web-audit-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/oh-namgyu/web-audit-kit/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/oh-namgyu/web-audit-kit)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/oh-namgyu/web-audit-kit)](https://github.com/oh-namgyu/web-audit-kit/releases)
+
+
 **[🇰🇷 한국어 README](README_KOR.md)**
 
 Non-invasive site audit reporter for security, UX/design, architecture, and functional QA.
