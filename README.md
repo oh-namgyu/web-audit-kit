@@ -9,6 +9,8 @@
 
 Non-invasive site audit reporter for security, UX/design, architecture, and functional QA.
 
+![web-audit-kit dashboard](assets/screenshot.png)
+
 web-audit-kit is designed as a local-first audit assistant. It opens a target URL, collects passive browser/header evidence, creates Markdown/HTML/JSON reports, and can optionally send those reports by email.
 
 ## Safety Notice
