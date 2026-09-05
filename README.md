@@ -1,13 +1,10 @@
 # web-audit-kit
 
 [![CI](https://github.com/oh-namgyu/web-audit-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/oh-namgyu/web-audit-kit/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/oh-namgyu/web-audit-kit)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/oh-namgyu/web-audit-kit)](https://github.com/oh-namgyu/web-audit-kit/releases)
 
-
 > **한글 요약** — 설치형 사이트 감사 리포터입니다 — 대상 사이트를 건드리지 않는 비침습 방식으로 보안·UX·아키텍처·기능 QA를 한 번에 점검해 리포트를 만듭니다. *(전체 한국어 문서: [README_KOR.md](README_KOR.md))*
-
-**[🇰🇷 한국어 README](README_KOR.md)**
 
 Non-invasive site audit reporter for security, UX/design, architecture, and functional QA.
 
@@ -211,3 +208,7 @@ curl 'http://127.0.0.1:6197/api/export?id=REPORT_ID&format=html'
 - Keep mail delivery disabled unless explicitly configured.
 - Add authentication, target allowlists, and rate limits before shared hosting.
 - Keep private IP blocking enabled for any network-exposed deployment.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Security policy: [SECURITY.md](SECURITY.md).
