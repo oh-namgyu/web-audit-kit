@@ -47,10 +47,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **SMTP TLS now verifies certificates** (`rejectUnauthorized: true`) for direct
   TLS and STARTTLS connections.
 - **Invalid JSON request bodies return `400`** instead of a generic server error.
+- **Mail delivery fails closed on an unknown transport.** Any
+  `TESTGPT7_MAIL_TRANSPORT` value other than `sendmail` / `smtp` (for example a
+  typo such as `smpt`) is now skipped with `unknown mail transport` instead of
+  silently falling through to sendmail.
 
 ### Tests
 - Added an SSRF guard regression suite (`test/ssrf.test.js`) covering
   private/metadata/loopback blocking, IPv4-mapped IPv6 bypass prevention,
   non-http(s) rejection, and DNS-rebinding pin behavior.
 - Added a pure-helper smoke suite (`test/smoke.test.js`) as a refactor safety net.
-- Full suite: 14 passing.
+- Added offline behavioral suites for the `lib/` modules (no network, no new
+  dependencies):
+  - `test/report.test.js` — HTML report escaping of every target/user-controlled
+    field (`<script>` / quote / attribute-breakout payloads, `<title>`, severity
+    class), Markdown and email-summary structure.
+  - `test/analysis.test.js` — profile normalization, scope-gate decisions,
+    header and viewport findings on fixture data, verdict thresholds and scoring
+    (desktop/mobile de-duplication, 0 floor).
+  - `test/mail.test.js` — CR/LF header-injection hardening in
+    subject/from/to, RFC 2047 encoding, MIME attachment folding, and the
+    no-config / unknown-transport / missing-SMTP-host no-send gates.
+  - `test/util.test.js` — `bool`, `escapeHtml`, `severityWeight`, `addFinding`,
+    `parseRecipients` (CR/LF rejection, 20-recipient cap).
+- Full suite: 58 passing.
