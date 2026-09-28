@@ -29,7 +29,7 @@ function setBusy(busy, message) {
 }
 
 function sevClass(severity) {
-  return String(severity || '').toLowerCase();
+  return String(severity || '').toLowerCase().replace(/[^a-z]/g, '');
 }
 
 function setActiveTab(name) {
@@ -84,21 +84,20 @@ function renderAreaBalance(areas = {}) {
   }).join('');
 }
 
-function renderReport(report) {
-  currentReport = report;
+function renderSummaryNumbers(report) {
   const counts = report.summary?.counts || {};
   $('#score').textContent = report.summary?.score ?? '-';
   $('#verdict').textContent = report.summary?.verdict || '-';
-  $('#criticalCount').textContent = counts.Critical || 0;
-  $('#highCount').textContent = counts.High || 0;
-  $('#mediumCount').textContent = counts.Medium || 0;
-  $('#lowCount').textContent = counts.Low || 0;
+  for (const key of ['Critical', 'High', 'Medium', 'Low']) $(`#${key.toLowerCase()}Count`).textContent = counts[key] || 0;
   $('#viewportCount').textContent = report.viewports?.length || 0;
   $('#findingCount').textContent = `${report.findings?.length || 0}`;
   $('#exportBtn').disabled = false;
   $('#exportHtmlBtn').disabled = false;
   $('#areaBalance').classList.remove('empty');
   $('#areaBalance').innerHTML = renderAreaBalance(report.summary?.areas || {});
+}
+
+function renderScopePlan(report) {
   $('#scopeLabel').textContent = report.scopePlan?.label || 'Scope not set';
   $('#scopePlan').classList.toggle('empty', !report.scopePlan);
   $('#scopePlan').innerHTML = report.scopePlan ? `
@@ -116,7 +115,9 @@ function renderReport(report) {
     ${renderList('Manual confirmation needed', report.scopePlan.manualRequired, 'manual')}
     ${renderList('Warnings', report.scopePlan.warnings, 'warning')}
   ` : 'Run an audit to see the allowed / blocked / manual-confirmation scope based on the selected permission and stage.';
+}
 
+function renderFindingLists(report) {
   const priority = (report.findings || []).filter(item => ['Critical', 'High'].includes(item.severity));
   $('#priority').classList.toggle('empty', !priority.length);
   $('#priority').innerHTML = priority.length
@@ -140,8 +141,10 @@ function renderReport(report) {
       </dl>
     </article>
   `).join('') || '<p class="empty">No issues detected.</p>';
+}
 
-  $('#evidence').innerHTML = `
+function renderTargetEvidence(report) {
+  return `
     <article>
       <h3>Target</h3>
       <dl>
@@ -155,8 +158,12 @@ function renderReport(report) {
         <div><dt>HTTP</dt><dd>${esc(report.headerResult?.status || report.headerResult?.error || '-')}</dd></div>
       </dl>
     </article>
-    ${(report.viewports || []).map(view => `<article>
-      <h3>${esc(view.viewport)} · ${view.width}x${view.height}</h3>
+    `;
+}
+
+function renderViewportEvidence(view) {
+  return `<article>
+      <h3>${esc(view.viewport)} · ${esc(view.width)}x${esc(view.height)}</h3>
       <dl>
         <div><dt>Status</dt><dd>${esc(view.status || '-')}</dd></div>
         <div><dt>Load</dt><dd>${esc(view.loadMs)}ms</dd></div>
@@ -168,7 +175,15 @@ function renderReport(report) {
         <div><dt>Overflow</dt><dd>${esc(view.metrics?.overflow?.length || 0)}</dd></div>
       </dl>
       <p>${esc(view.metrics?.textSample || '')}</p>
-    </article>`).join('')}
+    </article>`;
+}
+
+function renderReport(report) {
+  currentReport = report;
+  renderSummaryNumbers(report);
+  renderScopePlan(report);
+  renderFindingLists(report);
+  $('#evidence').innerHTML = `${renderTargetEvidence(report)}${(report.viewports || []).map(renderViewportEvidence).join('')}
   `;
 }
 
@@ -186,19 +201,17 @@ async function runAudit(targetUrl) {
   }
 }
 
-async function loadHistory() {
-  const data = await api('/api/reports');
-  const items = data.items || [];
-  const latest = items[0];
-  const previous = items[1];
-  const trend = latest && previous
-    ? `<article class="history-trend">
+function renderHistoryTrend(latest, previous) {
+  if (!latest || !previous) return '';
+  return `<article class="history-trend">
         <b>Recent change</b>
         <span>Score ${esc(previous.summary?.score ?? '-')} → ${esc(latest.summary?.score ?? '-')}</span>
         <small>${esc(previous.summary?.verdict || '-')} → ${esc(latest.summary?.verdict || '-')}</small>
-      </article>`
-    : '';
-  $('#history').innerHTML = trend + (items || []).map(item => `
+      </article>`;
+}
+
+function renderHistoryRow(item) {
+  return `
     <article class="history-row" data-id="${esc(item.id)}">
       <button type="button" class="history-open" data-action="open" data-id="${esc(item.id)}">
         <b>${esc(item.summary?.verdict || '-')}</b>
@@ -212,40 +225,43 @@ async function loadHistory() {
         <button type="button" class="small ghost" data-action="resend" data-id="${esc(item.id)}">Resend mail</button>
       </div>
     </article>
-  `).join('') || '<p class="empty">No saved reports.</p>';
+  `;
+}
+
+async function resendReport(id) {
+  setBusy(true, 'Resending mail...');
+  try {
+    const data = await api('/api/resend', { method: 'POST', body: { id } });
+    renderReport(data.report);
+    await loadHistory();
+    setBusy(false, `Resent: mail ${data.report.mailDelivery?.status || '-'}`);
+    setActiveTab('reporting');
+  } catch (error) {
+    setBusy(false, `Resend failed: ${error.message}`);
+  }
+}
+
+async function handleHistoryAction(action, id) {
+  const exportUrl = `/api/export?id=${encodeURIComponent(id)}`;
+  if (action === 'html') window.open(`${exportUrl}&format=html`, '_blank', 'noopener,noreferrer');
+  else if (action === 'md') window.location.href = exportUrl;
+  else if (action === 'json') window.location.href = `${exportUrl}&format=json`;
+  else if (action === 'resend') await resendReport(id);
+  else {
+    const data = await api(`/api/report?id=${encodeURIComponent(id)}`);
+    renderReport(data.report);
+    setActiveTab('reporting');
+  }
+}
+
+async function loadHistory() {
+  const data = await api('/api/reports');
+  const items = data.items || [];
+  $('#history').innerHTML = renderHistoryTrend(items[0], items[1]) + items.map(renderHistoryRow).join('') || '<p class="empty">No saved reports.</p>';
   document.querySelectorAll('[data-action]').forEach(button => {
     button.addEventListener('click', async event => {
       event.stopPropagation();
-      const id = button.dataset.id;
-      const action = button.dataset.action;
-      if (action === 'html') {
-        window.open(`/api/export?id=${encodeURIComponent(id)}&format=html`, '_blank', 'noopener,noreferrer');
-        return;
-      }
-      if (action === 'md') {
-        window.location.href = `/api/export?id=${encodeURIComponent(id)}`;
-        return;
-      }
-      if (action === 'json') {
-        window.location.href = `/api/export?id=${encodeURIComponent(id)}&format=json`;
-        return;
-      }
-      if (action === 'resend') {
-        setBusy(true, 'Resending mail...');
-        try {
-          const data = await api('/api/resend', { method: 'POST', body: { id } });
-          renderReport(data.report);
-          await loadHistory();
-          setBusy(false, `Resent: mail ${data.report.mailDelivery?.status || '-'}`);
-          setActiveTab('reporting');
-        } catch (error) {
-          setBusy(false, `Resend failed: ${error.message}`);
-        }
-        return;
-      }
-      const data = await api(`/api/report?id=${encodeURIComponent(id)}`);
-      renderReport(data.report);
-      setActiveTab('reporting');
+      await handleHistoryAction(button.dataset.action, button.dataset.id);
     });
   });
 }

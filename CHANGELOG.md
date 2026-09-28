@@ -36,6 +36,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   listener wiring), `analyzeViewportResult` (functional / design / architecture
   sub-analyzers), and `buildHtmlReport` (per-section renderers). Behavior is
   unchanged.
+- **Split `lib/analysis.js` (508 lines) and `lib/report.js` (319 lines)** into
+  cohesive modules; every previously exported symbol is still exported from its
+  original module:
+  - `lib/scope.js` — profile normalization, scope planning, profile findings.
+  - `lib/findings.js` — header and viewport findings.
+  - `lib/viewport.js` — Playwright viewport inspection and in-page metrics.
+  - `lib/htmlReport.js` — standalone HTML report rendering.
+- **Broke up the remaining functions longer than 50 lines**:
+  `collectViewportMetrics` (in-page helpers, serialized together into one
+  `page.evaluate` script), `createSmtpClient` (`readSmtpResponse`,
+  `upgradeToTls`), `buildMarkdown` (per-section builders), and in
+  `public/app.js` `renderReport` and `loadHistory`. Behavior is unchanged.
 
 ### Deprecated
 - **`TESTGPT7_*` environment variables.** They are still read as a fallback when
@@ -43,6 +55,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   variable to stderr. They will be removed in a future major release.
 
 ### Security
+- **Defense-in-depth escaping in report renderers.** Viewport width/height and
+  the severity/area count numbers in the HTML report and the web UI now go
+  through `escapeHtml`/`esc`, and the web UI's severity CSS class is reduced to
+  letters (matching the HTML report's `severityClass`), so a tampered stored
+  report can no longer break out of a `class` attribute.
 - **Pinned DNS to close the SSRF rebinding gap.** The IP validated by
   `assertTargetAllowed` is reused as the connection pin so the socket connects to
   exactly the checked IP, preventing TOCTOU / DNS-rebinding re-resolution to a

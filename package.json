@@ -18,7 +18,7 @@
   ],
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check lib/util.js && node --check lib/targetGuard.js && node --check lib/mail.js && node --check lib/analysis.js && node --check lib/report.js && node --check public/app.js",
+    "check": "node --check server.js && node --check lib/util.js && node --check lib/targetGuard.js && node --check lib/mail.js && node --check lib/scope.js && node --check lib/findings.js && node --check lib/viewport.js && node --check lib/analysis.js && node --check lib/htmlReport.js && node --check lib/report.js && node --check public/app.js",
     "test": "node --test"
   },
   "dependencies": {
