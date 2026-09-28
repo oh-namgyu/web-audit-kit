@@ -18,7 +18,7 @@ Before exposing web-audit-kit to a network, add your own:
 - Access logs
 - Network segmentation
 
-If `HOST` is not loopback, audit target URLs require `TESTGPT7_TARGET_ALLOWLIST` unless `TESTGPT7_ALLOW_ANY_TARGET=true` is set.
+If `HOST` is not loopback, audit target URLs require `WEB_AUDIT_KIT_TARGET_ALLOWLIST` unless `WEB_AUDIT_KIT_ALLOW_ANY_TARGET=true` is set.
 
 Network-exposed deployments also block private/reserved IP ranges after DNS resolution by default. This protection is applied to the initial target URL, HTTP redirects, and Playwright subresource requests.
 

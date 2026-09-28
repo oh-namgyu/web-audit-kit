@@ -9,9 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 - **Renamed the project from `testGpt7` to `web-audit-kit`.** `package.json` `name`,
   the startup log, the `/api/health` `name` field, the report footer, the email
-  subject prefix/`From` default, and the MIME boundary all use the new name. The
-  `TESTGPT7_*` environment variables keep their prefix as a stable configuration
-  contract.
+  subject prefix/`From` default, and the MIME boundary all use the new name.
+- **Environment variables are now `WEB_AUDIT_KIT_*`.** All configuration is read
+  through a single `env(name)` helper in `lib/util.js`; the new name wins when
+  both are set. `.env.example`, README, and SECURITY use the new names, and the
+  target-guard / Playwright error messages point at them.
 - **Translated the entire user-facing surface to English (i18n).** The web UI
   (`public/index.html`, `public/app.js`), all audit findings and scope/profile
   labels, and the Markdown / HTML / email reports now render in English. The HTML
@@ -35,6 +37,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   sub-analyzers), and `buildHtmlReport` (per-section renderers). Behavior is
   unchanged.
 
+### Deprecated
+- **`TESTGPT7_*` environment variables.** They are still read as a fallback when
+  the matching `WEB_AUDIT_KIT_*` name is unset, and print a one-time warning per
+  variable to stderr. They will be removed in a future major release.
+
 ### Security
 - **Pinned DNS to close the SSRF rebinding gap.** The IP validated by
   `assertTargetAllowed` is reused as the connection pin so the socket connects to
@@ -48,11 +55,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   TLS and STARTTLS connections.
 - **Invalid JSON request bodies return `400`** instead of a generic server error.
 - **Mail delivery fails closed on an unknown transport.** Any
-  `TESTGPT7_MAIL_TRANSPORT` value other than `sendmail` / `smtp` (for example a
+  `WEB_AUDIT_KIT_MAIL_TRANSPORT` value other than `sendmail` / `smtp` (for example a
   typo such as `smpt`) is now skipped with `unknown mail transport` instead of
   silently falling through to sendmail.
 
 ### Tests
+- Added `test/env.test.js` covering the `WEB_AUDIT_KIT_*` name, the legacy
+  `TESTGPT7_*` fallback with its one-time warning, and precedence.
 - Added an SSRF guard regression suite (`test/ssrf.test.js`) covering
   private/metadata/loopback blocking, IPv4-mapped IPv6 bypass prevention,
   non-http(s) rejection, and DNS-rebinding pin behavior.

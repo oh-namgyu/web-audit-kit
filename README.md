@@ -103,12 +103,12 @@ Important defaults:
 
 - `HOST=127.0.0.1`
 - `PORT=6197`
-- `TESTGPT7_MAIL_TRANSPORT=disabled`
+- `WEB_AUDIT_KIT_MAIL_TRANSPORT=disabled`
 
 To bind outside loopback, you must explicitly set:
 
 ```bash
-TESTGPT7_ALLOW_NETWORK_EXPOSURE=true
+WEB_AUDIT_KIT_ALLOW_NETWORK_EXPOSURE=true
 ```
 
 Use this only on a trusted network with separate access controls.
@@ -116,25 +116,25 @@ Use this only on a trusted network with separate access controls.
 When the server is bound outside loopback, target URLs are blocked unless an allowlist is set:
 
 ```bash
-TESTGPT7_TARGET_ALLOWLIST=example.com,*.example.org
+WEB_AUDIT_KIT_TARGET_ALLOWLIST=example.com,*.example.org
 ```
 
 To intentionally allow any target behind your own access controls:
 
 ```bash
-TESTGPT7_ALLOW_ANY_TARGET=true
+WEB_AUDIT_KIT_ALLOW_ANY_TARGET=true
 ```
 
 When exposed to a network, private/reserved IP ranges are blocked after DNS resolution by default. This also applies to redirects and Playwright subresources. Local loopback mode keeps private targets available for internal development unless you opt in:
 
 ```bash
-TESTGPT7_BLOCK_PRIVATE_IPS=true
+WEB_AUDIT_KIT_BLOCK_PRIVATE_IPS=true
 ```
 
 To allow private targets in a network-exposed deployment, you must explicitly set:
 
 ```bash
-TESTGPT7_ALLOW_PRIVATE_TARGETS=true
+WEB_AUDIT_KIT_ALLOW_PRIVATE_TARGETS=true
 ```
 
 Use that only for a tightly controlled internal deployment.
@@ -152,16 +152,17 @@ Supported transports:
 SMTP example:
 
 ```bash
-TESTGPT7_MAIL_TRANSPORT=smtp
-TESTGPT7_MAIL_FROM=audit@example.com
-TESTGPT7_SMTP_HOST=smtp.example.com
-TESTGPT7_SMTP_PORT=587
-TESTGPT7_SMTP_SECURE=false
-TESTGPT7_SMTP_USER=example-user
-TESTGPT7_SMTP_PASS=replace-with-app-password
+WEB_AUDIT_KIT_MAIL_TRANSPORT=smtp
+WEB_AUDIT_KIT_MAIL_FROM=audit@example.com
+WEB_AUDIT_KIT_SMTP_HOST=smtp.example.com
+WEB_AUDIT_KIT_SMTP_PORT=587
+WEB_AUDIT_KIT_SMTP_SECURE=false
+WEB_AUDIT_KIT_SMTP_USER=example-user
+WEB_AUDIT_KIT_SMTP_PASS=replace-with-app-password
 ```
 
-> Note: the environment variables keep the `TESTGPT7_` prefix as a stable configuration contract; only the project name changed to web-audit-kit.
+> Note: the legacy `TESTGPT7_*` names (from the project's former name) are still read as a deprecated fallback and print a one-time warning to stderr. When both are set, `WEB_AUDIT_KIT_*` wins. Rename them; the fallback will be removed in a future major release.
+
 
 ## API
 
